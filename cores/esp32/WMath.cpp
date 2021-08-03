@@ -77,12 +77,12 @@ long map(long x, long in_min, long in_max, long out_min, long out_max) {
     return (delta * dividend + (divisor / 2)) / divisor + out_min;
 }
 
-uint16_t makeWord(uint16_t w)
+unsigned int makeWord(unsigned int w)
 {
     return w;
 }
 
-uint16_t makeWord(uint8_t h, uint8_t l)
+unsigned int makeWord(unsigned char h, unsigned char l)
 {
     return (h << 8) | l;
 }

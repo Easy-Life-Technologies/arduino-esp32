@@ -23,7 +23,6 @@
 #include <lwip/netdb.h>
 #include <errno.h>
 
-#define WIFI_CLIENT_DEF_CONN_TIMEOUT  (3)
 #define WIFI_CLIENT_MAX_WRITE_RETRY   (10)
 #define WIFI_CLIENT_SELECT_TIMEOUT_US (1000000)
 #define WIFI_CLIENT_FLUSH_BUFFER_SIZE (1024)
@@ -47,11 +46,7 @@ private:
                 return 0;
             }
             int count;
-#ifdef ESP_IDF_VERSION_MAJOR
-            int res = lwip_ioctl(_fd, FIONREAD, &count);
-#else
             int res = lwip_ioctl_r(_fd, FIONREAD, &count);
-#endif
             if(res < 0) {
                 _failed = true;
                 return 0;
@@ -208,7 +203,7 @@ void WiFiClient::stop()
 
 int WiFiClient::connect(IPAddress ip, uint16_t port)
 {
-    return connect(ip,port,WIFI_CLIENT_DEF_CONN_TIMEOUT);
+    return connect(ip,port,-1);
 }
 int WiFiClient::connect(IPAddress ip, uint16_t port, int32_t timeout)
 {
@@ -232,11 +227,7 @@ int WiFiClient::connect(IPAddress ip, uint16_t port, int32_t timeout)
     tv.tv_sec = 0;
     tv.tv_usec = timeout * 1000;
 
-#ifdef ESP_IDF_VERSION_MAJOR
-    int res = lwip_connect(sockfd, (struct sockaddr*)&serveraddr, sizeof(serveraddr));
-#else
     int res = lwip_connect_r(sockfd, (struct sockaddr*)&serveraddr, sizeof(serveraddr));
-#endif
     if (res < 0 && errno != EINPROGRESS) {
         log_e("connect on fd %d, errno: %d, \"%s\"", sockfd, errno, strerror(errno));
         close(sockfd);
@@ -279,7 +270,7 @@ int WiFiClient::connect(IPAddress ip, uint16_t port, int32_t timeout)
 
 int WiFiClient::connect(const char *host, uint16_t port)
 {
-    return connect(host,port,WIFI_CLIENT_DEF_CONN_TIMEOUT);
+    return connect(host,port,-1);
 }
 int WiFiClient::connect(const char *host, uint16_t port, int32_t timeout)
 {
@@ -322,7 +313,7 @@ int WiFiClient::setOption(int option, int *value)
 
 int WiFiClient::getOption(int option, int *value)
 {
-	socklen_t size = sizeof(int);
+    size_t size = sizeof(int);
     int res = getsockopt(fd(), IPPROTO_TCP, option, (char *)value, &size);
     if(res < 0) {
         log_e("fail on fd %d, errno: %d, \"%s\"", fd(), errno, strerror(errno));
@@ -443,25 +434,20 @@ size_t WiFiClient::write(Stream &stream)
 int WiFiClient::read(uint8_t *buf, size_t size)
 {
     int res = -1;
-    if (_rxBuffer) {
-        res = _rxBuffer->read(buf, size);
-        if(_rxBuffer->failed()) {
-            log_e("fail on fd %d, errno: %d, \"%s\"", fd(), errno, strerror(errno));
-            stop();
-        }
+    res = _rxBuffer->read(buf, size);
+    if(_rxBuffer->failed()) {
+        log_e("fail on fd %d, errno: %d, \"%s\"", fd(), errno, strerror(errno));
+        stop();
     }
     return res;
 }
 
 int WiFiClient::peek()
 {
-    int res = -1;
-    if (_rxBuffer) {
-        res = _rxBuffer->peek();
-        if(_rxBuffer->failed()) {
-            log_e("fail on fd %d, errno: %d, \"%s\"", fd(), errno, strerror(errno));
-            stop();
-        }
+    int res = _rxBuffer->peek();
+    if(_rxBuffer->failed()) {
+        log_e("fail on fd %d, errno: %d, \"%s\"", fd(), errno, strerror(errno));
+        stop();
     }
     return res;
 }
